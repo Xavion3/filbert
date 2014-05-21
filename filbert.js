@@ -2140,6 +2140,79 @@
     // TODO: use 'type' or isSequence instead of 'instanceof Array' to id these
 
     objects: {
+      Number: function () {
+        this.__slots__ = pythonRuntime.objects.tuple();
+        this.__hash__ = null;
+      }
+      complex: function (real, imag) {
+        var self = this;
+        self.real = real;
+        self.imag = imag;
+        
+        self.__abs__ = function() {
+          return Math.sqrt(self.real*self.real + self.imag*self.imag);
+        };
+        self.__add__ = function(other) {
+          return pythonRuntime.objects.complex(self.real+other.real, self.imag+other.imag);
+        };
+        self.__bool__ = function() {
+          return !(self.real === 0 && self.imag === 0);
+        };
+        self.__complex__ = function() {
+          return self;
+        };
+        self.__eq__ = function(other) {
+          return (self.real == other.real && self.imag == other.imag);
+        };
+        self.__mul__ = function(other) {
+          return pythonRuntime.objects.complex(self.real*other.real-self.imag*other.imag, self.imag*other.real+self.real*other.imag);
+        };
+        self.__ne__ = function(other) {
+          return (self.real != other.real || self.imag != other.imag);
+        };
+        self.__neg__ = function() {
+          return pythonRuntime.objects.complex(-self.real, -self.imag);
+        };
+        self.__pos__ = function() {
+          return pythonRuntime.objects.complex(self.real, self.imag);
+        };
+        self.__pow__ = function(exponent) {
+          if (exponent.real === 0 && exponent.imag === 0) {
+            return pythonRuntime.objects.complex(1,0);
+          } else if (self.real === 0 && self.imag === 0) {
+            if (exponent.imag !== 0 || exponent.real < 0) ;// ZeroDivisionError
+            return pythonRuntime.objects.complex(0,0);
+          } else {
+            var vabs = self.__abs__();
+            var len = Math.pow(vabs, exponent.real);
+            var at = Math.atan2(self.imag, self.real);
+            var phase = at*exponent.real;
+            if (exponent.imag != 0) {
+              len /= exp(at*exponent.imag);
+              phase += exponent.imag*Math.log(vabs);
+            }
+            return pythonRuntime.objects.complex(len*cos(phase), len*sin(phase));
+          }
+        };
+        self.__radd__ = function(other) {
+          return other.__add__(self);
+        };
+        self.__rmul__ = function(other) {
+          return other.__mul__(self);
+        };
+        self.__rpow__ = function(base) {
+          return base.__pow__(self);
+        };
+        self.__rsub__ = function(other) {
+          return other.__sub__(self);
+        };
+        self.__rtruediv__ = function(other) {
+          return other.__truediv__(self);
+        };
+        self.__sub__ = function(other) {
+          return pythonRuntime.objects.complex(self.real-other.real, self.imag-other.imag);
+        };
+      },
       dict: function () {
         var obj = {};
         for (var i in arguments) obj[arguments[i][0]] = arguments[i][1];
