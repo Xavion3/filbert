@@ -3371,7 +3371,7 @@
         return obj.toString();
       },
       sum: function (iterable, start) {
-        // TODO: start can't be a string
+        if (typeof start === 'string') throw TypeError("sum() can't sum strings [use ''.join(seq) instead]");
         var ret = start || 0;
         for (var i in iterable) ret += iterable[i];
         return ret;
