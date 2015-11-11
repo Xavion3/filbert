@@ -3065,6 +3065,11 @@
             return ret;
           }
         }
+        if (a.__add__ !== undefined) return a.__add__(b);
+        else if (b.__radd__ !== undefined && typeof a !== typeof b) return b.__radd__(a);
+        if (typeof a !== typeof b) {
+          throw TypeError("cannot implictly convert " + (typeof b) + " to " + (typeof a));
+        }
         return a + b;
       },
       in: function (a, b, n) {
