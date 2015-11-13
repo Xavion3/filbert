@@ -3254,7 +3254,11 @@
         fn = fn || function () { return true; };
         if (fn === null) function (x) { return x==true; };
         var ret = new pythonRuntime.objects.list();
-        for (var i in iterable) if (fn(iterable[i])) ret.push(iterable[i]);
+        for (var i in iterable) {
+          if (fn === null) {
+            if (pythonRuntime.functions.bool(iterable[i])) ret.push(iterable[i]);
+          } else if (fn(iterable[i])) ret.push(iterable[i]);
+        }
         return ret;
       },
       float: function(x) {
