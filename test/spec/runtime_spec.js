@@ -167,7 +167,7 @@ describe("Runtime library tests", function () {
 
   it("filter(None, seq)", function () {
     var code = "\
-    return filter(None, ['a', 'b'])\
+    return filter(None, ['a', 'b', 0])\
     ";
     expect(util.run(code)).toEqual(['a', 'b']);
   });
