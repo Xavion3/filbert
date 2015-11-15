@@ -2175,7 +2175,7 @@
       expect(_bracketR);
       return parseSubscripts(finishNode(node, "MemberExpression"), noCalls);
     } else if (!noCalls && eat(_parenL)) {
-      if (scope.isUserFunction(base.name)) {
+      if (scope.isUserFunction(base.name) || pythonRuntime.functions[base.name]) {
         // Unpack parameters into JavaScript-friendly parameters, further processed at runtime
         var createParamsCall = nc.createNodeRuntimeCall(node, 'utils', 'createParamsObj', parseParamsList());
         node.arguments = [createParamsCall];
@@ -3202,19 +3202,23 @@
     // Python built-in functions
 
     functions: {
-      abs: function(x) {
+      abs: function(params) {
+        var x = params.formals[0];
         return Math.abs(x);
       },
-      all: function(iterable) {
-        for (var i in iterable) if (pythonRuntime.functions.bool(iterable[i]) !== true) return false;
+      all: function(params) {
+        var iterable = params.formals[0];
+        for (var i in iterable) if (pythonRuntime.functions.bool(pythonRuntime.utils.createParamsObj(iterable[i])) !== true) return false;
         return true;
       },
-      any: function(iterable) {
-        for (var i in iterable) if (pythonRuntime.functions.bool(iterable[i]) === true) return true;
+      any: function(params) {
+        var iterable = params.formals[0];
+        for (var i in iterable) if (pythonRuntime.functions.bool(pythonRuntime.utils.createParamsObj(iterable[i])) === true) return true;
         return false;
       },
-      ascii: function(obj) {
-        var s = pythonRuntime.functions.repr(obj),
+      ascii: function(params) {
+        var obj = params.formals[0];
+        var s = pythonRuntime.functions.repr(pythonRuntime.utils.createParamsObj(obj)),
             asc = "",
             code;
         for (var i = 0; i < s.length; i++) {
@@ -3231,7 +3235,8 @@
         }
         return asc;
       },
-      bool: function(x) {
+      bool: function(params) {
+        var x = params.formals[0];
         return !(x === undefined || // No argument
                  x === null || // None
                  x === false || // False
@@ -3241,27 +3246,30 @@
                  (x.__bool__ !== undefined && x.__bool__() === false) || // If it has bool conversion defined
                  (x.__len__ !== undefined && (x.__len__() === false || x.__len__() === 0))); // If it has length conversion defined
       },
-      chr: function(i) {
+      chr: function(params) {
+        var i = params.formals[0];
         return String.fromCharCode(i); // TODO: Error code for not 0 <= i <= 1114111
       },
-      enumerate: function(iterable, start) {
-        start = start || 0;
+      enumerate: function(params) {
+        var iterable = params.formals[0];
+        var start = params.formals[1] || 0;
         var ret = new pythonRuntime.objects.list();
         for (var i in iterable) ret.push(new pythonRuntime.objects.tuple(start++, iterable[i]));
         return ret;
       },
-      filter: function(fn, iterable) {
-        fn = fn || function () { return true; };
-        if (fn === null) function (x) { return x==true; };
+      filter: function(params) {
+        var fn = params.formals[0];
+        var iterable = params.formals[1];
         var ret = new pythonRuntime.objects.list();
         for (var i in iterable) {
           if (fn === null) {
-            if (pythonRuntime.functions.bool(iterable[i])) ret.push(iterable[i]);
+            if (pythonRuntime.functions.bool(pythonRuntime.utils.createParamsObj(iterable[i]))) ret.push(iterable[i]);
           } else if (fn(iterable[i])) ret.push(iterable[i]);
         }
         return ret;
       },
-      float: function(x) {
+      float: function(params) {
+        var x = params.formals[0];
         if (x === undefined) return 0.0;
         else if (typeof x == "string") { // TODO: Fix type check
           x = x.trim().toLowerCase();
@@ -3275,28 +3283,36 @@
           else return null; // TODO: Throw TypeError: float() argument must be a string or a number, not '<type of x>'
         }
       },
-      hex: function(x) {
+      hex: function(params) {
+        var x = params.formals[0];
         return x.toString(16);
       },
-      int: function (s) {
+      int: function(params) {
+        var s = params.formals[0];
         return parseInt(s);
       },
-      len: function (o) {
+      len: function(params) {
+        var o = params.formals[0];
         return o.length;
       },
-      list: function (iterable) {
+      list: function(params) {
+        var iterable = params.formals[0];
         var ret = new pythonRuntime.objects.list();
         if (iterable instanceof Array) for (var i in iterable) ret.push(iterable[i]);
         else for (var i in iterable) ret.push(i);
         return ret;
       },
-      map: function(fn, iterable) {
+      map: function(params) {
+        var fn = params.formals[0];
+        var iterable = params.formals[1];
         // TODO: support additional iterables passed
         var ret = new pythonRuntime.objects.list();
         for (var i in iterable) ret.push(fn(iterable[i]));
         return ret;
       },
-      max: function(arg1, arg2) {
+      max: function(params) {
+        var arg1 = params.formals[0];
+        var arg2 = params.formals[1];
         // TODO: support optional keyword-only arguments
         // TODO: empty iterable raises Python ValueError
         if (!arg2) { // iterable
@@ -3305,7 +3321,9 @@
           return max;
         } else return arg1 >= arg2 ? arg1 : arg2;
       },
-      min: function(arg1, arg2) {
+      min: function(params) {
+        var arg1 = params.formals[0];
+        var arg2 = params.formals[1];
         // TODO: support optional keyword-only arguments
         // TODO: empty iterable raises Python ValueError
         if (!arg2) { // iterable
@@ -3314,22 +3332,30 @@
           return max;
         } else return arg1 <= arg2 ? arg1 : arg2;
       },
-      oct: function(x) {
+      oct: function(params) {
+        var x = params.formals[0];
         return x.toString(8);
       },
-      ord: function(c) {
+      ord: function(params) {
+        var c = params.formals[0];
         return c.charCodeAt(0);
       },
-      pow: function(x, y, z) {
+      pow: function(params) {
+        var x = params.formals[0];
+        var y = params.formals[1];
+        var z = params.formals[2];
         return z ? Math.pow(x, y) % z : Math.pow(x, y);
       },
-      print: function () {
+      print: function (params) {
         var s = "";
-        for (var i = 0; i < arguments.length; i++)
-          s += i === 0 ? arguments[i] : " " + arguments[i];
+        for (var i = 0; i < params.formals.length; i++)
+          s += i === 0 ? params.formals[i] : " " + params.formals[i];
         console.log(s);
       },
-      range: function (start, stop, step) {
+      range: function(params) {
+        var start = params.formals[0];
+        var stop = params.formals[1];
+        var step = params.formals[2];
         if (stop === undefined) {
           stop = start;
           start = 0;
@@ -3346,42 +3372,53 @@
         }
         return r;
       },
-      repr: function (obj) {
+      repr: function(params) {
+        var obj = params.formals[0];
         if (typeof obj === 'string') return "'" + obj + "'"; // TODO: Patch until typesystem comes up.
         if (obj.__repr__ !== undefined) return obj.__repr__();
         else if (obj.__class__ !== undefined && obj.__class__.module !== undefined && obj.__class__.__name__) {
           return '<'+obj.__class__.__module__+'.'+obj.__class__.__name__+' object>';
         } else return obj.toString(); // Raise a please report warning here, we should never reach this piece of code
       },
-      reversed: function (seq) {
+      reversed: function(params) {
+        var seq = params.formals[0];
         var ret = new pythonRuntime.objects.list();
         for (var i in seq) ret.push(seq[i]);
         return ret.reverse();
       },
-      round: function (num, ndigits) {
+      round: function(params) {
+        var num = params.formals[0];
+        var ndigits = params.formals[1];
         if (ndigits) {
           var scale = Math.pow(10, ndigits);
           return Math.round(num * scale) / scale;
         }
         return Math.round(num);
       },
-      sorted: function (iterable, key, reverse) {
+      sorted: function(params) {
+        var iterable = params.formals[0];
+        var key = params.formals[1];
+        var reverse = params.formals[2];
         var ret = new pythonRuntime.objects.list();
         for (var i in iterable) ret.push(iterable[i]);
         if(key) ret.sort(key); else ret.sort();
         if (reverse) ret.reverse();
         return ret;
       },
-      str: function (obj) {
+      str: function(params) {
+        var obj = params.formals[0];
         return obj.toString();
       },
-      sum: function (iterable, start) {
+      sum: function(params) {
+        var iterable = params.formals[0];
+        var start = params.formals[1];
         if (typeof start === 'string') throw TypeError("sum() can't sum strings [use ''.join(seq) instead]");
         var ret = start || 0;
         for (var i in iterable) ret += iterable[i];
         return ret;
       },
-      tuple: function (iterable) {
+      tuple: function(params) {
+        var iterable = params.formals[0];
         var ret = new pythonRuntime.objects.tuple();
         for (var i in iterable) ret.push(iterable[i]);
         return ret;
